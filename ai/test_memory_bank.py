@@ -127,3 +127,17 @@ print(
     "Feature dimension:",
     memory_bank.shape[1]
 )
+MEMORY_BANK_PATH = (
+    "/content/Vision-Inspect-AI/"
+    "ai/models/memory_bank.pt"
+)
+
+torch.save(
+    memory_bank,
+    MEMORY_BANK_PATH,
+)
+
+print(
+    "Memory bank saved to:",
+    MEMORY_BANK_PATH,
+)
