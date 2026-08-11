@@ -81,7 +81,7 @@ dataset/
 # Model checkpoints
 ai/checkpoints/
 ai/outputs/
-ai/models/
+# ai/models/
 *.pt
 *.pth
 *.onnx
