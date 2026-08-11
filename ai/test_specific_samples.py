@@ -16,10 +16,30 @@ for index, sample in enumerate(dataset):
     if sample["defect_type"] == "good":
 
         print("\nNORMAL SAMPLE")
+
         print("Index:", index)
+
         print("Label:", sample["label"])
-        print("Defect type:", sample["defect_type"])
-        print("Mask:", sample["mask"])
+
+        print(
+            "Defect type:",
+            sample["defect_type"]
+        )
+
+        print(
+            "Has mask:",
+            sample["has_mask"]
+        )
+
+        print(
+            "Mask shape:",
+            sample["mask"].shape
+        )
+
+        print(
+            "Mask sum:",
+            sample["mask"].sum().item()
+        )
 
         break
 
@@ -29,12 +49,29 @@ for index, sample in enumerate(dataset):
     if sample["defect_type"] != "good":
 
         print("\nDEFECTIVE SAMPLE")
+
         print("Index:", index)
+
         print("Label:", sample["label"])
-        print("Defect type:", sample["defect_type"])
+
+        print(
+            "Defect type:",
+            sample["defect_type"]
+        )
+
+        print(
+            "Has mask:",
+            sample["has_mask"]
+        )
+
         print(
             "Mask shape:",
             sample["mask"].shape
+        )
+
+        print(
+            "Mask sum:",
+            sample["mask"].sum().item()
         )
 
         break

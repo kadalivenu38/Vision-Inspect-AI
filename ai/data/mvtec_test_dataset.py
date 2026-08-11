@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
@@ -19,12 +20,15 @@ class MVTecTestDataset(Dataset):
         self.mask_transform = mask_transform
 
         self.category_dir = self.root_dir / category
-        self.test_dir = self.category_dir / "test"
+
+        self.test_dir = (
+            self.category_dir / "test"
+        )
+
         self.ground_truth_dir = (
             self.category_dir / "ground_truth"
         )
 
-        # Validate directory structure
         if not self.category_dir.exists():
             raise FileNotFoundError(
                 f"Category directory not found: "
@@ -48,12 +52,10 @@ class MVTecTestDataset(Dataset):
         self._build_samples()
 
     def _build_samples(self):
-        """
-        Build a list containing image paths,
-        labels, defect types, and mask paths.
-        """
 
-        for defect_dir in sorted(self.test_dir.iterdir()):
+        for defect_dir in sorted(
+            self.test_dir.iterdir()
+        ):
 
             if not defect_dir.is_dir():
                 continue
@@ -66,7 +68,10 @@ class MVTecTestDataset(Dataset):
 
             for image_path in image_paths:
 
+                # --------------------------------
                 # Normal image
+                # --------------------------------
+
                 if defect_type == "good":
 
                     self.samples.append({
@@ -74,9 +79,13 @@ class MVTecTestDataset(Dataset):
                         "label": 0,
                         "defect_type": "good",
                         "mask_path": None,
+                        "has_mask": False,
                     })
 
+                # --------------------------------
                 # Defective image
+                # --------------------------------
+
                 else:
 
                     mask_path = (
@@ -96,16 +105,21 @@ class MVTecTestDataset(Dataset):
                         "label": 1,
                         "defect_type": defect_type,
                         "mask_path": mask_path,
+                        "has_mask": True,
                     })
 
     def __len__(self):
+
         return len(self.samples)
 
     def __getitem__(self, index):
 
         sample = self.samples[index]
 
+        # --------------------------------
         # Load image
+        # --------------------------------
+
         image = Image.open(
             sample["image_path"]
         ).convert("RGB")
@@ -113,10 +127,11 @@ class MVTecTestDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        # Load ground-truth mask
-        mask = None
+        # --------------------------------
+        # Load mask
+        # --------------------------------
 
-        if sample["mask_path"] is not None:
+        if sample["has_mask"]:
 
             mask = Image.open(
                 sample["mask_path"]
@@ -125,10 +140,35 @@ class MVTecTestDataset(Dataset):
             if self.mask_transform:
                 mask = self.mask_transform(mask)
 
+            else:
+                raise ValueError(
+                    "mask_transform must be provided "
+                    "for defective samples."
+                )
+
+        else:
+
+            # Normal image has no defect.
+            # Therefore its ground-truth mask
+            # is completely zero.
+
+            height = image.shape[-2]
+            width = image.shape[-1]
+
+            mask = torch.zeros(
+                (1, height, width),
+                dtype=torch.float32,
+            )
+
+        # --------------------------------
+        # Return sample
+        # --------------------------------
+
         return {
             "image": image,
             "label": sample["label"],
             "defect_type": sample["defect_type"],
             "mask": mask,
+            "has_mask": sample["has_mask"],
             "path": str(sample["image_path"]),
         }
