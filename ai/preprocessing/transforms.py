@@ -1,20 +1,30 @@
 from torchvision import transforms
 
 
-IMAGE_SIZE = 256
-
+# ==================================================
+# Image transforms
+# ==================================================
 
 train_transform = transforms.Compose([
-    transforms.Resize(
-        (IMAGE_SIZE, IMAGE_SIZE)
-    ),
+    transforms.Resize((256, 256)),
     transforms.ToTensor(),
 ])
 
 
 test_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.ToTensor(),
+])
+
+
+# ==================================================
+# Mask transform
+# ==================================================
+
+mask_transform = transforms.Compose([
     transforms.Resize(
-        (IMAGE_SIZE, IMAGE_SIZE)
+        (256, 256),
+        interpolation=transforms.InterpolationMode.NEAREST,
     ),
     transforms.ToTensor(),
 ])
