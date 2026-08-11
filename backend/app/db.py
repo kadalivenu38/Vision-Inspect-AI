@@ -4,15 +4,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv():
+        return False
 
 # Load environment variables
 load_dotenv()
 
 DATABASE_URL = os.getenv("DB_URL")
 
-# Create Database Engine
-engine = create_engine(DATABASE_URL)
+if DATABASE_URL:
+    engine = create_engine(DATABASE_URL)
 
 # Create Session
 SessionLocal = sessionmaker(

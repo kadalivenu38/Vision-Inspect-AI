@@ -61,3 +61,39 @@ backend/uploads/
 *.sw?
 *.local
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# AI datasets
+ai/dataset/
+dataset/
+
+# Model checkpoints
+ai/checkpoints/
+ai/outputs/
+ai/models/
+*.pt
+*.pth
+*.onnx
+
+# Generated files
+uploads/
+results/
+logs/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

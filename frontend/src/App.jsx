@@ -1,26 +1,16 @@
-import { useEffect, useState } from "react";
-import api from "./api/api";
+import Signup from './pages/Register.jsx';
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import { Routes, Route } from 'react-router-dom';
 
 function App() {
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    api.get("/health")
-      .then((response) => {
-        setMessage(response.data.status);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }, []);
-
   return (
-    <div>
-      <h1>VisionInspect AI</h1>
-      <h2>Backend Status:</h2>
-      <p>{message}</p>
-    </div>
+    <Routes>
+      <Route path="/" element={<Signup />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+    </Routes>
   );
 }
 
-export default App;
+export default App

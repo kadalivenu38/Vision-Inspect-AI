@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Amarna:ital,wght@0,300;1,300&family=Cinzel:wght@400..900&family=Raleway:ital,wght@0,100..900;1,100..900&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Smooch+Sans:wght@100..900&display=swap&family=Comfortaa:wght@300..700&display=swap');
+
+.form-field{
+    box-shadow: 4px 4px 4px rgba(0, 0, 255, 0.75);
+    font-family: "Comfortaa", sans-serif;
+    word-spacing: 2px;
+}
+.signup-form{
+    border: 2px outset green;
+    padding: 2% 6%;
+    border-radius: 15px;
+    background-color: rgb(202, 250, 205);
+    font-family: "Red Hat Display", sans-serif;
+    font-size: 1rem;
+    font-weight: 450;
+}
+.login-form{
+    border: 2px outset green;
+    padding: 2% 6%;
+    border-radius: 15px;
+    background-color: rgb(255, 93, 93);
+    font-family: "Red Hat Display", sans-serif;
+    font-size: 1rem;
+    font-weight: 450;
+}
+.signup-form button, .login-form button{
+    font-family: "Amarna", sans-serif;
+    font-size: 19px;
+    padding: 0.5% 5%;
+    margin-top: 10%;
+    word-spacing: 2px;
+}
+.heading{
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    text-align: center;
+    color: rgb(0, 9, 89);
+    margin-bottom: 10%;
+}
+.home{
+    width: 100vw;
+    height: 100vh;
+    background-color: rgb(193, 231, 254);
+    font-family: "Raleway", sans-serif;
+    text-align: center;
+    color: rgb(5, 0, 65);
+}
+.navbar{
+    height: 12%;
+    background-color: rgb(0, 0, 76);
+    color: aliceblue;
+    margin-bottom: 10%;
+}
+.navbar button{
+    border: none;
+    border-radius: 18px;
+    background-color: maroon;
+    padding: 5px 25px;
+    margin-right: 30px;
+    font-size: 19px;
+    color: aliceblue;
+}
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+.password-wrapper input {
+  padding-right: 45px !important;
+}
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.password-wrapper input::-ms-reveal,
+.password-wrapper input::-ms-clear {
+  display: none;
+}
+.timer{
+    position: absolute;
+    right: 245px;
+    bottom: 275px;
+    letter-spacing: 2px;
+    font-size: 1.05rem;
+    color: red;
+    z-index: 1;
+}
+.access {
+    height: 100vh;
+    background-color: grey;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 15%;
+    font-size: 4em;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+}
