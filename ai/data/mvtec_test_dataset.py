@@ -1,9 +1,8 @@
 from pathlib import Path
 
-import numpy as np
-import torch
 from PIL import Image
 from torch.utils.data import Dataset
+import torch
 
 
 class MVTecTestDataset(Dataset):
@@ -14,160 +13,297 @@ class MVTecTestDataset(Dataset):
         category,
         transform=None,
         mask_transform=None,
+        load_masks=True,
     ):
-
         self.root_dir = Path(root_dir)
         self.category = category
+
         self.transform = transform
         self.mask_transform = mask_transform
 
-        self.category_dir = (
-            self.root_dir / category
-        )
+        # --------------------------------------------------
+        # If False:
+        #
+        # Dataset will NOT require ground-truth masks.
+        #
+        # Useful for:
+        # - threshold calculation
+        # - image-level anomaly detection
+        # - inference
+        #
+        # If True:
+        #
+        # Real masks are loaded for defective images.
+        #
+        # Useful for:
+        # - pixel-level evaluation
+        # - anomaly-map evaluation
+        # --------------------------------------------------
 
-        self.test_dir = (
-            self.category_dir / "test"
-        )
-
-        self.ground_truth_dir = (
-            self.category_dir / "ground_truth"
-        )
+        self.load_masks = load_masks
 
         self.samples = []
 
         self._build_samples()
 
-    # ========================================================
-    # Build sample list
-    # ========================================================
+    # ==========================================================
+    # Build test samples
+    # ==========================================================
 
     def _build_samples(self):
 
-        for defect_dir in sorted(
-            self.test_dir.iterdir()
-        ):
+        test_dir = (
+            self.root_dir
+            / self.category
+            / "test"
+        )
+
+        ground_truth_dir = (
+            self.root_dir
+            / self.category
+            / "ground_truth"
+        )
+
+        if not test_dir.exists():
+
+            raise FileNotFoundError(
+                f"Test directory not found: {test_dir}"
+            )
+
+        # ------------------------------------------------------
+        # Iterate through defect categories
+        # ------------------------------------------------------
+
+        for defect_dir in sorted(test_dir.iterdir()):
 
             if not defect_dir.is_dir():
                 continue
 
             defect_type = defect_dir.name
 
-            image_paths = sorted(
-                defect_dir.glob("*.png")
-            )
+            # ==================================================
+            # Good / normal images
+            # ==================================================
 
-            for image_path in image_paths:
+            if defect_type == "good":
 
-                # --------------------------------------------
-                # Normal image
-                # --------------------------------------------
-
-                if defect_type == "good":
+                for image_path in sorted(
+                    defect_dir.glob("*.png")
+                ):
 
                     self.samples.append({
+
                         "image_path": image_path,
+
                         "label": 0,
+
                         "defect_type": "good",
+
                         "mask_path": None,
+
                     })
 
-                # --------------------------------------------
-                # Defective image
-                # --------------------------------------------
+            # ==================================================
+            # Defective images
+            # ==================================================
 
-                else:
+            else:
+
+                mask_dir = (
+                    ground_truth_dir
+                    / defect_type
+                )
+
+                for image_path in sorted(
+                    defect_dir.glob("*.png")
+                ):
 
                     mask_path = (
-                        self.ground_truth_dir
-                        / defect_type
+                        mask_dir
                         / f"{image_path.stem}_mask.png"
                     )
 
+                    # ------------------------------------------------
+                    # Only require the mask when masks are actually
+                    # requested.
+                    # ------------------------------------------------
+
+                    if self.load_masks:
+
+                        if not mask_path.exists():
+
+                            raise FileNotFoundError(
+                                f"Mask not found: {mask_path}"
+                            )
+
                     self.samples.append({
+
                         "image_path": image_path,
+
                         "label": 1,
+
                         "defect_type": defect_type,
-                        "mask_path": mask_path,
+
+                        "mask_path": (
+                            mask_path
+                            if mask_path.exists()
+                            else None
+                        ),
+
                     })
 
-    # ========================================================
+    # ==========================================================
     # Dataset length
-    # ========================================================
+    # ==========================================================
 
     def __len__(self):
 
         return len(self.samples)
 
-    # ========================================================
-    # Get item
-    # ========================================================
+    # ==========================================================
+    # Get sample
+    # ==========================================================
 
     def __getitem__(self, index):
 
         sample = self.samples[index]
 
-        # ----------------------------------------------------
+        image_path = sample["image_path"]
+
+        label = sample["label"]
+
+        defect_type = sample["defect_type"]
+
+        mask_path = sample["mask_path"]
+
+        # ======================================================
         # Load image
-        # ----------------------------------------------------
+        # ======================================================
 
         image = Image.open(
-            sample["image_path"]
+            image_path
         ).convert("RGB")
 
-        if self.transform:
+        # ======================================================
+        # Apply image transform
+        # ======================================================
+
+        if self.transform is not None:
 
             image = self.transform(image)
 
-        # ----------------------------------------------------
-        # Load mask
-        # ----------------------------------------------------
+        # ======================================================
+        # Image must be Tensor
+        # ======================================================
 
-        mask = None
+        if not torch.is_tensor(image):
 
-        if sample["mask_path"] is not None:
+            raise TypeError(
+                "Image must be a Tensor after "
+                "applying transform."
+            )
 
-            mask = Image.open(
-                sample["mask_path"]
-            ).convert("L")
+        height = image.shape[-2]
 
-            # If mask transform exists, use it
-            if self.mask_transform:
+        width = image.shape[-1]
+
+        # ======================================================
+        # NORMAL IMAGE
+        # ======================================================
+
+        if label == 0:
+
+            mask = torch.zeros(
+                (1, height, width),
+                dtype=torch.float32,
+            )
+
+        # ======================================================
+        # DEFECTIVE IMAGE
+        # ======================================================
+
+        else:
+
+            # --------------------------------------------------
+            # If masks are disabled:
+            #
+            # We don't need the ground-truth mask.
+            #
+            # Return a dummy zero mask so the dataset structure
+            # remains consistent.
+            # --------------------------------------------------
+
+            if not self.load_masks:
+
+                mask = torch.zeros(
+                    (1, height, width),
+                    dtype=torch.float32,
+                )
+
+            else:
+
+                if self.mask_transform is None:
+
+                    raise ValueError(
+                        "mask_transform must be provided "
+                        "when load_masks=True."
+                    )
+
+                if mask_path is None:
+
+                    raise FileNotFoundError(
+                        f"Mask path is missing for: "
+                        f"{image_path}"
+                    )
+
+                mask = Image.open(
+                    mask_path
+                ).convert("L")
 
                 mask = self.mask_transform(
                     mask
                 )
 
-            # Otherwise convert directly to Tensor
-            else:
+                # ------------------------------------------------
+                # Convert mask into binary values.
+                #
+                # 0 = normal
+                # 1 = defective
+                # ------------------------------------------------
 
-                mask = torch.from_numpy(
-                    np.array(mask)
+                mask = (
+                    mask > 0.5
                 ).float()
 
-                mask = mask / 255.0
+        # ======================================================
+        # Final safety check
+        # ======================================================
 
-                # Add channel dimension
-                #
-                # [H, W]
-                #
-                # becomes
-                #
-                # [1, H, W]
+        if image.shape[-2:] != mask.shape[-2:]:
 
-                if mask.ndim == 2:
+            raise ValueError(
+                f"Image and mask size mismatch: "
+                f"image={image.shape}, "
+                f"mask={mask.shape}, "
+                f"path={image_path}"
+            )
 
-                    mask = mask.unsqueeze(0)
-
-        # ----------------------------------------------------
-        # Return
-        # ----------------------------------------------------
+        # ======================================================
+        # Return sample
+        # ======================================================
 
         return {
+
             "image": image,
-            "label": sample["label"],
-            "defect_type": sample["defect_type"],
-            "mask": mask,
-            "path": str(
-                sample["image_path"]
+
+            "label": torch.tensor(
+                label,
+                dtype=torch.long,
             ),
+
+            "mask": mask,
+
+            "defect_type": defect_type,
+
+            "path": str(image_path),
         }

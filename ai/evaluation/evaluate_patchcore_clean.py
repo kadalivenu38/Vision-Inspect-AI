@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -13,7 +14,10 @@ from sklearn.metrics import (
     classification_report,
 )
 
-from preprocessing.transforms import train_transform
+from preprocessing.transforms import (
+    test_transform,
+    mask_transform,
+)
 
 from data.mvtec_test_dataset import (
     MVTecTestDataset,
@@ -43,7 +47,17 @@ CORESET_PATH = (
     "ai/models/coreset_memory_bank_clean.pt"
 )
 
-THRESHOLD = 0.103228
+# ============================================================
+# IMPORTANT
+#
+# This value MUST come from validation.
+#
+# Do NOT tune this value using the test set.
+# ============================================================
+
+THRESHOLD = 0.124763
+
+BATCH_SIZE = 4
 
 
 # ============================================================
@@ -66,8 +80,8 @@ print("Using device:", device)
 test_dataset = MVTecTestDataset(
     root_dir=DATASET_ROOT,
     category=CATEGORY,
-    transform=train_transform,
-    mask_transform=None,
+    transform=test_transform,
+    mask_transform=mask_transform,
 )
 
 print(
@@ -82,10 +96,10 @@ print(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=4,
+    batch_size=BATCH_SIZE,
     shuffle=False,
-    num_workers=2,
-    pin_memory=True,
+    num_workers=0,
+    pin_memory=False,
 )
 
 
@@ -134,6 +148,7 @@ feature_extractor.eval()
 all_scores = []
 all_labels = []
 all_defect_types = []
+all_paths = []
 
 
 # ============================================================
@@ -173,10 +188,6 @@ with torch.no_grad():
             features
         )
 
-        # Shape:
-        #
-        # [B, 1024, 384]
-
         B, N, C = embeddings.shape
 
         # ----------------------------------------------------
@@ -190,8 +201,7 @@ with torch.no_grad():
         )
 
         # ----------------------------------------------------
-        # Compare each image's patches
-        # against the normal coreset
+        # Calculate anomaly score
         # ----------------------------------------------------
 
         batch_scores = []
@@ -202,34 +212,20 @@ with torch.no_grad():
                 embeddings[i]
             )
 
-            # [1024, 384] × [384, 8601]
-            #
-            # Result:
-            #
-            # [1024, 8601]
-
             similarity = torch.matmul(
                 image_embeddings,
                 coreset.T,
             )
 
-            # For every patch:
-            #
-            # find the closest normal patch
-
-            max_similarity = similarity.max(
-                dim=1
-            ).values
-
-            # Convert similarity to distance
+            max_similarity = (
+                similarity.max(
+                    dim=1
+                ).values
+            )
 
             distances = (
                 1.0 - max_similarity
             )
-
-            # Image-level anomaly score:
-            #
-            # maximum patch anomaly
 
             image_score = distances.max()
 
@@ -253,6 +249,28 @@ with torch.no_grad():
             list(defect_types)
         )
 
+        # ----------------------------------------------------
+        # Optional path information
+        # ----------------------------------------------------
+
+        if "path" in batch:
+
+            all_paths.extend(
+                list(batch["path"])
+            )
+
+        elif "image_path" in batch:
+
+            all_paths.extend(
+                list(batch["image_path"])
+            )
+
+        else:
+
+            all_paths.extend(
+                [None] * B
+            )
+
         print(
             f"Processed batch "
             f"{batch_index + 1}/"
@@ -261,17 +279,17 @@ with torch.no_grad():
 
 
 # ============================================================
-# Convert to lists / arrays
+# Convert Results
 # ============================================================
 
-import numpy as np
-
 scores = np.array(
-    all_scores
+    all_scores,
+    dtype=np.float32,
 )
 
 labels = np.array(
-    all_labels
+    all_labels,
+    dtype=np.int64,
 )
 
 
@@ -319,14 +337,16 @@ f1 = f1_score(
 cm = confusion_matrix(
     labels,
     predictions,
+    labels=[0, 1],
 )
 
 
 # ============================================================
-# Print results
+# Print Main Results
 # ============================================================
 
 print()
+
 print("=" * 60)
 print("PatchCore-style Evaluation")
 print("=" * 60)
@@ -361,6 +381,7 @@ print(
 # ============================================================
 
 print()
+
 print("Confusion Matrix:")
 
 print(cm)
@@ -371,6 +392,7 @@ print(cm)
 # ============================================================
 
 print()
+
 print(
     classification_report(
         labels,
@@ -389,15 +411,14 @@ print(
 # ============================================================
 
 print()
+
 print("=" * 60)
 print("Per Defect Type")
 print("=" * 60)
 
-
 unique_types = sorted(
     set(all_defect_types)
 )
-
 
 for defect_type in unique_types:
 
@@ -408,13 +429,9 @@ for defect_type in unique_types:
         if value == defect_type
     ]
 
-    type_scores = scores[
-        indices
-    ]
-
-    type_predictions = predictions[
-        indices
-    ]
+    type_predictions = (
+        predictions[indices]
+    )
 
     detected = (
         type_predictions == 1
@@ -424,6 +441,8 @@ for defect_type in unique_types:
 
     detection_rate = (
         detected / total
+        if total > 0
+        else 0.0
     )
 
     print(
@@ -434,3 +453,214 @@ for defect_type in unique_types:
         f" Detection rate: "
         f"{detection_rate:.4f}"
     )
+
+
+# ============================================================
+# Overall Anomaly Score Distribution
+# ============================================================
+
+print()
+
+print("=" * 60)
+print("Overall Anomaly Score Distribution")
+print("=" * 60)
+
+normal_scores = scores[
+    labels == 0
+]
+
+defective_scores = scores[
+    labels == 1
+]
+
+
+print()
+print("Normal images:")
+
+print(
+    f"Minimum : "
+    f"{normal_scores.min():.6f}"
+)
+
+print(
+    f"Maximum : "
+    f"{normal_scores.max():.6f}"
+)
+
+print(
+    f"Mean    : "
+    f"{normal_scores.mean():.6f}"
+)
+
+print(
+    f"Median  : "
+    f"{np.median(normal_scores):.6f}"
+)
+
+
+print()
+print("Defective images:")
+
+print(
+    f"Minimum : "
+    f"{defective_scores.min():.6f}"
+)
+
+print(
+    f"Maximum : "
+    f"{defective_scores.max():.6f}"
+)
+
+print(
+    f"Mean    : "
+    f"{defective_scores.mean():.6f}"
+)
+
+print(
+    f"Median  : "
+    f"{np.median(defective_scores):.6f}"
+)
+
+
+# ============================================================
+# False Positives
+# ============================================================
+
+false_positive_indices = np.where(
+    (labels == 0)
+    & (predictions == 1)
+)[0]
+
+
+# ============================================================
+# False Negatives
+# ============================================================
+
+false_negative_indices = np.where(
+    (labels == 1)
+    & (predictions == 0)
+)[0]
+
+
+print()
+
+print("=" * 60)
+print("Error Analysis")
+print("=" * 60)
+
+
+print()
+print(
+    f"False Positives : "
+    f"{len(false_positive_indices)}"
+)
+
+for index in false_positive_indices:
+
+    print(
+        f"  Index={index} "
+        f"Score={scores[index]:.6f} "
+        f"Type={all_defect_types[index]} "
+        f"Path={all_paths[index]}"
+    )
+
+
+print()
+print(
+    f"False Negatives : "
+    f"{len(false_negative_indices)}"
+)
+
+for index in false_negative_indices:
+
+    print(
+        f"  Index={index} "
+        f"Score={scores[index]:.6f} "
+        f"Type={all_defect_types[index]} "
+        f"Path={all_paths[index]}"
+    )
+
+
+# ============================================================
+# Borderline Samples
+# ============================================================
+
+print()
+
+print("=" * 60)
+print("Borderline Samples")
+print("=" * 60)
+
+distance_from_threshold = np.abs(
+    scores - THRESHOLD
+)
+
+borderline_indices = np.argsort(
+    distance_from_threshold
+)[:10]
+
+
+for index in borderline_indices:
+
+    actual = (
+        "Defective"
+        if labels[index] == 1
+        else "Normal"
+    )
+
+    predicted = (
+        "Defective"
+        if predictions[index] == 1
+        else "Normal"
+    )
+
+    print(
+        f"Index={index:<3} "
+        f"Score={scores[index]:.6f} "
+        f"Actual={actual:<10} "
+        f"Predicted={predicted:<10} "
+        f"Type={all_defect_types[index]} "
+        f"Path={all_paths[index]}"
+    )
+
+
+# ============================================================
+# Final Interpretation
+# ============================================================
+
+print()
+
+print("=" * 60)
+print("Evaluation Summary")
+print("=" * 60)
+
+print(
+    f"Correct predictions : "
+    f"{(predictions == labels).sum()}/{len(labels)}"
+)
+
+print(
+    f"False positives     : "
+    f"{len(false_positive_indices)}"
+)
+
+print(
+    f"False negatives     : "
+    f"{len(false_negative_indices)}"
+)
+
+print(
+    f"Normal acceptance   : "
+    f"{(
+        (predictions[labels == 0] == 0).sum()
+        / (labels == 0).sum()
+    ):.4f}"
+)
+
+print(
+    f"Defect detection    : "
+    f"{(
+        (predictions[labels == 1] == 1).sum()
+        / (labels == 1).sum()
+    ):.4f}"
+)

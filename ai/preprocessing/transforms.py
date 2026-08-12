@@ -1,9 +1,9 @@
 from torchvision import transforms
 
 
-# ==================================================
-# Image transforms
-# ==================================================
+# ============================================================
+# Image Transform
+# ============================================================
 
 train_transform = transforms.Compose([
     transforms.Resize((256, 256)),
@@ -11,15 +11,19 @@ train_transform = transforms.Compose([
 ])
 
 
+# ============================================================
+# Test Image Transform
+# ============================================================
+
 test_transform = transforms.Compose([
     transforms.Resize((256, 256)),
     transforms.ToTensor(),
 ])
 
 
-# ==================================================
-# Mask transform
-# ==================================================
+# ============================================================
+# Mask Transform
+# ============================================================
 
 mask_transform = transforms.Compose([
     transforms.Resize(

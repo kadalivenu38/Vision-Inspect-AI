@@ -6,17 +6,12 @@ from preprocessing.transforms import (
 )
 
 
-# ==================================================
-# Dataset configuration
-# ==================================================
+DATASET_ROOT = (
+    "/content/drive/MyDrive/MVTec_Dataset"
+)
 
-DATASET_ROOT = "/content/drive/MyDrive/MVTec_Dataset"
 CATEGORY = "bottle"
 
-
-# ==================================================
-# Create test dataset
-# ==================================================
 
 dataset = MVTecTestDataset(
     root_dir=DATASET_ROOT,
@@ -26,22 +21,31 @@ dataset = MVTecTestDataset(
 )
 
 
+print(
+    "Total test samples:",
+    len(dataset)
+)
+
+
 # ==================================================
-# Basic information
+# Check normal sample
 # ==================================================
 
-print("Total test samples:", len(dataset))
+normal_index = None
+
+for i in range(len(dataset)):
+
+    if dataset[i]["label"] == 0:
+
+        normal_index = i
+        break
 
 
-# ==================================================
-# Test first 5 samples
-# ==================================================
+if normal_index is not None:
 
-for index in range(min(5, len(dataset))):
+    sample = dataset[normal_index]
 
-    sample = dataset[index]
-
-    print("\nSample:", index)
+    print("\nNormal sample")
 
     print(
         "Image shape:",
@@ -58,15 +62,68 @@ for index in range(min(5, len(dataset))):
         sample["defect_type"],
     )
 
-    if sample["mask"] is not None:
-        print(
-            "Mask shape:",
-            sample["mask"].shape,
-        )
-    else:
-        print("Mask: None")
+    print(
+        "Mask shape:",
+        sample["mask"].shape,
+    )
 
     print(
-        "Path:",
-        sample["path"],
+        "Mask minimum:",
+        sample["mask"].min().item(),
+    )
+
+    print(
+        "Mask maximum:",
+        sample["mask"].max().item(),
+    )
+
+
+# ==================================================
+# Check defective sample
+# ==================================================
+
+defective_index = None
+
+for i in range(len(dataset)):
+
+    if dataset[i]["label"] == 1:
+
+        defective_index = i
+        break
+
+
+if defective_index is not None:
+
+    sample = dataset[defective_index]
+
+    print("\nDefective sample")
+
+    print(
+        "Image shape:",
+        sample["image"].shape,
+    )
+
+    print(
+        "Label:",
+        sample["label"],
+    )
+
+    print(
+        "Defect type:",
+        sample["defect_type"],
+    )
+
+    print(
+        "Mask shape:",
+        sample["mask"].shape,
+    )
+
+    print(
+        "Mask minimum:",
+        sample["mask"].min().item(),
+    )
+
+    print(
+        "Mask maximum:",
+        sample["mask"].max().item(),
     )

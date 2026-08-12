@@ -1,13 +1,27 @@
+import torch
+
 from torch.utils.data import DataLoader
 
-from data.mvtec_test_dataset import MVTecTestDataset
-from preprocessing.transforms import test_transform
-from preprocessing.mask_transforms import mask_transform
+from data.mvtec_test_dataset import (
+    MVTecTestDataset,
+)
+
+from preprocessing.transforms import (
+    test_transform,
+    mask_transform,
+)
+
+
+DATASET_ROOT = (
+    "/content/drive/MyDrive/MVTec_Dataset"
+)
+
+CATEGORY = "bottle"
 
 
 dataset = MVTecTestDataset(
-    root_dir="dataset/mvtec",
-    category="bottle",
+    root_dir=DATASET_ROOT,
+    category=CATEGORY,
     transform=test_transform,
     mask_transform=mask_transform,
 )
@@ -17,23 +31,25 @@ loader = DataLoader(
     dataset,
     batch_size=8,
     shuffle=False,
+    num_workers=0,
 )
 
 
 batch = next(iter(loader))
 
 
-print("Image shape:")
+print("Image batch:")
 print(batch["image"].shape)
 
-print("\nLabels:")
+print("\nLabel batch:")
 print(batch["label"])
 
-print("\nMask shape:")
+print("\nMask batch:")
 print(batch["mask"].shape)
 
 print("\nDefect types:")
 print(batch["defect_type"])
 
-print("\nHas mask:")
-print(batch["has_mask"])
+print("\nPaths:")
+for path in batch["path"]:
+    print(path)
